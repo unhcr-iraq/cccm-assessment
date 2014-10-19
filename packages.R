@@ -28,8 +28,10 @@ packages <- c("ggplot2", # package for elegant data visualization using the Gram
               ## install gdal and geos separately before  http://robinlovelace.net/r/2013/11/26/installing-rgdal-on-ubuntu.html
               "raster","classInt","lubridate","date","gdata","gridExtra","scales",
               "ggthemes", ## load different custmised theme: excel, stata, economist, tufte, wall street journal...
-              "xkcd" ## Style from the xkcd comics 
-              #"XLConnect" ## Read and write excel files
+              "xkcd", ## Style from the xkcd comics 
+              "FactoClass", ## package for ward clustering
+              "ade4" ## package for multiplace correspodance analysis
+              #"XLConnect", ## Read and write excel files
 )
 if (length(setdiff(packages, rownames(installed.packages()))) > 0) {
   install.packages(setdiff(packages, rownames(installed.packages())))  
@@ -64,6 +66,9 @@ library(date)
 library(gdata)
 library(gridExtra)
 library(scales)
+
+library(FactoClass)
+library(ade4)
 
 #
 format_si <- function(...) {
