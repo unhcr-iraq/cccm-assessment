@@ -1,8 +1,8 @@
 #######Analysis of  CCM baseline
 
 
-download.file(url = "http://ona.io/iraqcccm/exports/baseline/csv", 
-              destfile = "~/unhcr_r_project/cccm-assessment/data/data.csv")
+#download.file(url = "http://ona.io/iraqcccm/exports/baseline/csv", 
+#              destfile = "~/unhcr_r_project/cccm-assessment/data/data.csv")
 #
 rm(data)
 data <- read.csv("~/unhcr_r_project/cccm-assessment/data/baseline_2014_10_19_15_37_07.csv")
@@ -50,7 +50,7 @@ data$accom <- paste(
   ifelse(data[["physicalcondition.shelter.shop"]] == "True","Shop", ""),
   ifelse(data[["physicalcondition.shelter.big"]] == "True","Appart", ""), sep=" ")
 
-//data$accom <- paste(ifelse(data[["physicalcondition.shelter.const"]] == "True","Unfinished", ""), sep="")
+##/data$accom <- paste(ifelse(data[["physicalcondition.shelter.const"]] == "True","Unfinished", ""), sep="")
 
 data$accom <- gsub("  ", " ", data$accom)
 data$accom <- gsub("  ", " ", data$accom)
@@ -70,7 +70,7 @@ data$score <- data$water_access + data$water_quality +
               data$openelement + data$damage + data$mines+ data$hazards + data$fighting
 
 data$scoreclass <- as.factor(findCols(classIntervals(data$score, n=5, style="jenks")))
-data$scoreclass <-revalue(data$scoreclass, c("1"="None", "2"="Low", "3"="Medium", "4"="High", "5"="Extreme"))
+data$scoreclass <-revalue(data$scoreclass, c("5"="5.None", "4"="4.Low", "3"="3.Medium", "2"="2.High", "1"="1.Extreme"))
 
 
 data$class <- as.factor(findCols(classIntervals(data$descript.individual, n=6, style="fixed",fixedBreaks=c(0, 50, 100, 250, 500, 1000, 100000))))
@@ -103,11 +103,25 @@ clustered <- ward.cluster(chiDist,
 
 data$cluster <- paste("Cluster", cutree(clustered, k = 5))
 
-data$accom <- gsub("/(\r\n|\n|\r", "", data$accom)
+
 
 ## Remove line carriage
-data$descript.neighbourhood <- data$descript.neighbourhood                
-data$descript.sitear <-  data$descript.sitear
+## http://dodata.wordpress.com/2013/03/08/some-new-gsub-and-grep-in-r-for-irritating-carriage-returns-and-line-feed-cr-lf-crlf/
+data$neighbourhood <- data$descript.neighbourhood
+grep('\\R\\n', x=data$neighbourhood,value=TRUE)
+gsub('\\R\\n', '', x=data$neighbourhood) -> data$neighbourhood
+grep("\\n\\n", x=data$neighbourhood,value=TRUE)
+gsub('\\n\\n', '', x=data$neighbourhood) -> data$neighbourhood
+grep("\\n", x=data$neighbourhood,value=TRUE)
+gsub('\\n', '', x=data$neighbourhood) -> data$neighbourhood
+
+data$sitear <- data$descript.sitear
+grep('\\R\\n', x=data$sitear,value=TRUE)
+gsub('\\R\\n', '', x=data$sitear) -> data$sitear
+grep("\\n\\n", x=data$sitear,value=TRUE)
+gsub('\\n\\n', '', x=data$sitear) -> data$sitear
+grep("\\n", x=data$sitear,value=TRUE)
+gsub('\\n', '', x=data$sitear) -> data$sitear
 
 ## Create export for dataviz
 rm(dataviz)
@@ -116,7 +130,7 @@ names(dataviz)
 #dataviz <- dataviz[,-(1:10,12,16,17,29:37,46:50),drop=FALSE]
 
 ## select the column of interest for the dataviz
-dataviz <-dataviz[ , c( "descript.organisat" ,"descript.governorate", "descript.district" ,
+dataviz <-dataviz[ , c( "sitear", "neighbourhood", "descript.organisat" ,"descript.governorate", "descript.district" ,
               "descript.photo.photoreceiver"  , "descript.environment" ,                     
  "descript.phonekey",         
   "descript.population.household", "descript.population.men",
@@ -164,33 +178,3 @@ dataviz$fighting <-revalue(dataviz$fighting, c("maj"="1.Major","mod"="2.Moderate
 ## write in a tsv file for the dataviz -- reason for the tsv is to keep the formatting of the column where coordinates are stored
 write.table(dataviz, file='out/dataviz.tsv', quote=FALSE, sep='\t', col.names = T, row.names = F)
 
-
-## Plot per month of Arrival
-rm(data.accomodation)
-              
-data.accomodation <- melt(data, id=c(7,8,11,13,14), measure=c(29:37))
-data.accomodation.sum <- dcast(data.accomodation,  
-                               descript.governorate+descript.organisat +
-                                 descript._coordinates_latitude + 
-                                 descript._coordinates_longitude ~ variable, count)
-              
-              data.accomodation.sum <- dcast(data.accomodation,  
-                                             descript.governorate ~ variable, count)
-
-#master.month <- master.month[order(-master.month$Month.Displacement),]
-
-rm(plotmonth1)
-plotmonth1 <- ggplot(data=master.month, aes(x=Month.Displacement , y=total))+
-  geom_bar(stat="identity",fill="#2a87c8",colour="#2a87c8")+
-  labs(x = "Displacement Month", y = "Total IDP Ind.")+
-  scale_y_continuous(labels=format_si())+
-  ggtitle("Total IDPs per month of reported displacement")+
-  theme_tufte(base_family="Helvetica")+
-  theme(plot.title=element_text(face="bold", size=14),
-        axis.title.x=element_text(face="plain", size=9),
-        axis.title.y=element_text(face="plain", size=9),
-        axis.text.x=element_text(face="italic", size=7),
-        axis.text.y=element_text(face="bold", size=7))
-
-# Save this!
-ggsave("~/unhcr_r_project/cccm-assessment/plot/test.png", plotmonth1, width=8, height=6,units="in", dpi=300)
