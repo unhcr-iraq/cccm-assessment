@@ -24,11 +24,12 @@ packages <- c("ggplot2", # package for elegant data visualization using the Gram
               "reshape2", # package to easily melt data to long form
               "RColorBrewer", # a package offering color palette from 
               "extrafont", ##" load additional font
-              "sp","maptools","rgdal","rgeos","ggmap","PBSmapping", ## packages used for the maps --
+              "sp","maptools","rgdal","rgeos","ggmap","PBSmapping", "spatstat", ## packages used for the maps --
               ## install gdal and geos separately before  http://robinlovelace.net/r/2013/11/26/installing-rgdal-on-ubuntu.html
               "raster","classInt","lubridate","date","gdata","gridExtra","scales",
               "ggthemes", ## load different custmised theme: excel, stata, economist, tufte, wall street journal...
               "xkcd", ## Style from the xkcd comics 
+              "deldir", ## for voronoi
               "FactoClass", ## package for ward clustering
               "ade4" ## package for multiplace correspodance analysis
               #"XLConnect", ## Read and write excel files
@@ -49,13 +50,7 @@ library(extrafont) ## Additional fonts
 library(ggthemes) ## Additional themes for gplot2
 library(zoo) ## Manage reformatting of date
 library(reshape2) ## Restructure data between wide and long format before plotting them - melt and cast
-library(maptools) ## Create maps
-library(rgdal) ## Open geographic files
-library(rgeos)
-library(PBSmapping)
-library(ggmap) ## get background map from google map
-library(sp) ## Spatial library
-library(raster) ## Managing raster dataset
+
 library(RColorBrewer) ## Color palette
 library(classInt) ## Classififcation
 library(hexbin) ## Hexa binning
@@ -69,6 +64,21 @@ library(scales)
 
 library(FactoClass)
 library(ade4)
+library(deldir)
+
+library(sp)  # add spatial package to load the S4 spatial objects
+library(spatstat)  # to calculate field of point density
+library(maptools) ## Create maps
+library(rgdal) ## Open geographic files
+library(rgeos)
+#library(PBSmapping)
+library(ggmap) ## get background map from google map
+
+library(raster) ## Managing raster dataset
+
+library(devtools)
+#install_git("git://github.com/gsk3/taRifx.geo.git")
+library(taRifx.geo)
 
 #
 format_si <- function(...) {
@@ -114,6 +124,9 @@ psum <- function(..., na.rm=FALSE) {
   x <- list(...)
   rowSums(matrix(unlist(x), ncol=length(x)), na.rm=na.rm)
 }
+
+
+
 
 
 ### Customised theme

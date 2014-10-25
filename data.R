@@ -1,11 +1,15 @@
 #######Analysis of  CCM baseline
 
+source("~/unhcr_r_project/cccm-assessment/packages.R")
 
 #download.file(url = "http://ona.io/iraqcccm/exports/baseline/csv", 
 #              destfile = "~/unhcr_r_project/cccm-assessment/data/data.csv")
 #
 rm(data)
-data <- read.csv("~/unhcr_r_project/cccm-assessment/data/baseline_2014_10_19_15_37_07.csv")
+data <- read.csv("~/unhcr_r_project/cccm-assessment/data/baseline_2014_10_24_06_46_26.csv")
+
+
+
 
 names(data)
 
@@ -77,7 +81,7 @@ data$class <- as.factor(findCols(classIntervals(data$descript.individual, n=6, s
 
 data$class <-revalue(data$class, c("1"="a. 0-49", "2"="b. 50-99", "3"="c. 100-249", "4"="d. 250-499", "5"="e. 500-2000", "6"="f. >1000"))
 
-data$duration <- data$end - data$start 
+#data$duration <- data$end - data$start 
 
 
 ####################
@@ -123,7 +127,10 @@ gsub('\\n\\n', '', x=data$sitear) -> data$sitear
 grep("\\n", x=data$sitear,value=TRUE)
 gsub('\\n', '', x=data$sitear) -> data$sitear
 
-## Create export for dataviz
+
+##################################################################
+####### Create export for dataviz  ###############################
+##################################################################
 rm(dataviz)
 dataviz <- data
 names(dataviz)
@@ -140,13 +147,13 @@ dataviz <-dataviz[ , c( "sitear", "neighbourhood", "descript.organisat" ,"descri
 "physicalcondition.conditions.hazards","physicalcondition.conditions.mines","physicalcondition.conditions.fighting", "geo",                                       
  "Improvised.Shelter","Tent", "Individual.mud.building",                   
 "Individual.mix.building","Individual.concrete.building", "Shop" ,                                     
- "Apartment.block", "Under.construction", "class","accom","cluster","scoreclass"
+ "Apartment.block", "Under.construction", "class","accom","cluster","scoreclass", "descript._coordinates_longitude", "descript._coordinates_latitude"
   )]
 
 ## get shorten version of the column to decrease dataviz size
 dataviz <-rename(dataviz, c("descript.organisat"="organisat" ,"descript.governorate" = "governorate", "descript.district" = "district",
                   "descript.photo.photoreceiver"="photo"  , "descript.environment" ="environment" ,                     
-                  "descript.phonekey"="phone",         
+                  "descript.phonekey"="phone",      "descript._coordinates_longitude"="longitude", "descript._coordinates_latitude"="latitude",   
                   "descript.population.household"="household", "descript.population.men"="men",
                   "descript.population.women"="women"  , "descript.population.boys"= "boys" , "descript.population.girls"="girls",                 
                   "descript.individual"="individual" , "physicalcondition.conditions.water_access"="water_access",
@@ -177,4 +184,121 @@ dataviz$fighting <-revalue(dataviz$fighting, c("maj"="1.Major","mod"="2.Moderate
 
 ## write in a tsv file for the dataviz -- reason for the tsv is to keep the formatting of the column where coordinates are stored
 write.table(dataviz, file='out/dataviz.tsv', quote=FALSE, sep='\t', col.names = T, row.names = F)
+
+
+
+
+dataviz1 <-data[ , c( "descript.individual" , "descript._coordinates_longitude", "descript._coordinates_latitude"
+)]
+
+## get shorten version of the column to decrease dataviz size
+dataviz1 <-rename(dataviz1, c( "descript._coordinates_longitude"="longitude", "descript._coordinates_latitude"="latitude",                 
+                            "descript.individual"="individual"))
+
+
+
+
+
+
+datasp <- dataviz1
+
+coords <- cbind(datasp$longitude, datasp$latitude)
+datasp <- SpatialPointsDataFrame(coords , data= datasp,proj4string=CRS("+proj=longlat"))
+
+writeSpatialShape(datasp, "datasp")
+
+district <- readShapePoly('~/unhcr_r_project/cccm-assessment/data/irq_admbnda_adm2_ocha_20140717.shp', proj4string=CRS("+proj=longlat"))
+
+#This creates the voronoi line segments
+## function for voronoi polygon
+# http://stackoverflow.com/questions/12156475/combine-voronoi-polygons-and-maps
+## loop on each district
+districti <- district[1,]
+voronoipolygons <- function(x,poly) {
+  require(deldir)
+  if (.hasSlot(x, 'coords')) {
+    crds <- x@coords  
+  } else crds <- x
+  bb = bbox(poly)
+  rw = as.numeric(t(bbox(district)))
+  z <- deldir(crds[,1], crds[,2],rw=rw)
+  w <- tile.list(z)
+  polys <- vector(mode='list', length=length(w))
+  require(sp)
+  for (i in seq(along=polys)) {
+    pcrds <- cbind(w[[i]]$x, w[[i]]$y)
+    pcrds <- rbind(pcrds, pcrds[1,])
+    polys[[i]] <- Polygons(list(Polygon(pcrds)), ID=as.character(i))
+  }
+  SP <- SpatialPolygons(polys)
+  
+  voronoi <- SpatialPolygonsDataFrame(SP, data=data.frame(x=crds[,1],
+                                                          y=crds[,2], row.names=sapply(slot(SP, 'polygons'), 
+                                                                                       function(x) slot(x, 'ID'))))
+  
+  return(voronoi)
+  
+}
+
+
+vorototal <- voronoipolygons(coords,district)
+plot(test)
+
+gg1 = gIntersection(districti,vorototal,byid=TRUE)
+
+
+#gg <- spRbind(gg1, gg0) 
+#gg <- gUnion(gg1, gg0) 
+# gg <-rbind(gg,gg0, fix.duplicated.IDs=TRUE)
+
+#rm(gg0)  
+
+########################################################
+
+poly.data <- gg1
+uid <- as.numeric("1")
+disnumber <- length(district)
+for (i in 1:disnumber)
+{
+    districti <- district[i,]
+    assign(paste("gg",i,sep=""), gIntersection(districti,vorototal,byid=TRUE))
+    temp.data <- gIntersection(districti,vorototal,byid=TRUE)
+    n <- length(slot(temp.data, "polygons"))
+    temp.data <- spChFIDs(temp.data, as.character(uid:(uid+n-1)))
+    uid <- as.numeric( uid + n)
+    poly.data <- spRbind(poly.data,temp.data)
+    i <- i + 1;
+}
+
+plot(poly.data)
+#summary(poly.data)
+
+## Convert SpatialPolygons in SpatialPolygonsDataFrame
+IDs <- sapply(slot(poly.data, "polygons"), function(x) slot(x, "ID"))
+df <- data.frame(rep(0, length(IDs)), row.names=IDs)
+
+spp <- SpatialPolygonsDataFrame(poly.data,df)
+
+sppover <- over(spp, datasp)
+spp@data$id = as.numeric(rownames(spp@data))
+sppover$id = as.numeric(rownames(sppover))
+sppall <-merge(x=spp, y=sppover, by="row.names")
+
+names(sppall)
+## put 0 instead of NA to ensure that individual will be parsed as numeric
+sppall@data$individual[is.na(sppall@data$individual)] <- 0
+
+#keep only individual
+sppall1 <- sppall
+sppall1 <-sppall1[,-(5)]
+sppall1 <-sppall1[,-(1:3)]
+
+sppall1 <-sppall1[,-(2:3)]
+
+#sppall1 <-sppall1[ , c("individual")]
+
+writeOGR(sppall1,"out","voronoi3",driver="ESRI Shapefile")
+
+
+#writePolyShape(gg, "voronoi")
 
