@@ -6,7 +6,7 @@ source("~/unhcr_r_project/cccm-assessment/packages.R")
 #              destfile = "~/unhcr_r_project/cccm-assessment/data/data.csv")
 #
 rm(data)
-data <- read.csv("~/unhcr_r_project/cccm-assessment/data/baseline_2014_10_24_06_46_26.csv")
+data <- read.csv("~/unhcr_r_project/cccm-assessment/data/Baseline.csv")
 
 
 
@@ -81,6 +81,11 @@ data$class <- as.factor(findCols(classIntervals(data$descript.individual, n=6, s
 
 data$class <-revalue(data$class, c("1"="a. 0-49", "2"="b. 50-99", "3"="c. 100-249", "4"="d. 250-499", "5"="e. 500-2000", "6"="f. >1000"))
 
+
+data$householdnum <- as.factor(findCols(classIntervals(data$descript.population.household/data$descript.individual, n=6, style="jenks")))
+
+
+
 #data$duration <- data$end - data$start 
 
 
@@ -128,6 +133,35 @@ grep("\\n", x=data$sitear,value=TRUE)
 gsub('\\n', '', x=data$sitear) -> data$sitear
 
 
+#### Start correcting the gov and district
+
+dataviz1 <-data[ , c( "descript.individual" , "descript._coordinates_longitude", "descript._coordinates_latitude"
+)]
+
+## get shorten version of the column to decrease dataviz size
+dataviz1 <-rename(dataviz1, c( "descript._coordinates_longitude"="longitude", "descript._coordinates_latitude"="latitude",                 
+                               "descript.individual"="individual"))
+
+datasp <- dataviz1
+
+coords <- cbind(datasp$longitude, datasp$latitude)
+datasp <- SpatialPointsDataFrame(coords , data= datasp,proj4string=CRS("+proj=longlat"))
+
+writeSpatialShape(datasp, "datasp")
+
+district <- readShapePoly('~/unhcr_r_project/cccm-assessment/data/irq_admbnda_adm2_ocha_20140717.shp', proj4string=CRS("+proj=longlat"))
+
+datasp1 <- IntersectPtWithPoly(datasp, district)
+
+correct <- datasp1@data[ ,c("A1NameEn","HRname")]
+data <- merge(x=data, y=correct, by="row.names")
+
+
+#data$govchk <- as.numeric(ifelse(data$A1NameEn == data$descript.governorate,0, 1))
+
+#data$govchk <- as.numeric(ifelse(data[["A1NameEn"]] == data[["descript.governorate"]],0, 1))
+#data$districtchk <- as.numeric(ifelse(data[["HRname"]] == data[["descript.district"]],0, 1))
+
 ##################################################################
 ####### Create export for dataviz  ###############################
 ##################################################################
@@ -138,8 +172,8 @@ names(dataviz)
 
 ## select the column of interest for the dataviz
 dataviz <-dataviz[ , c( "sitear", "neighbourhood", "descript.organisat" ,"descript.governorate", "descript.district" ,
-              "descript.photo.photoreceiver"  , "descript.environment" ,                     
- "descript.phonekey",         
+              "descript.photo.photoreceiver"  , "descript.environment" ,      "A1NameEn", "HRname",              
+ "descript.phonekey", "householdnum",        
   "descript.population.household", "descript.population.men",
 "descript.population.women" , "descript.population.boys" , "descript.population.girls",                 
  "descript.individual" , "physicalcondition.conditions.water_access", "physicalcondition.conditions.water_quality",
@@ -151,7 +185,11 @@ dataviz <-dataviz[ , c( "sitear", "neighbourhood", "descript.organisat" ,"descri
   )]
 
 ## get shorten version of the column to decrease dataviz size
-dataviz <-rename(dataviz, c("descript.organisat"="organisat" ,"descript.governorate" = "governorate", "descript.district" = "district",
+dataviz <-rename(dataviz, c("descript.organisat"="organisat" ,
+                            "descript.governorate" = "governorateor", 
+                            "descript.district" = "districtor",
+                            "A1NameEn"= "governorate", "HRname" = "district",  
+                            
                   "descript.photo.photoreceiver"="photo"  , "descript.environment" ="environment" ,                     
                   "descript.phonekey"="phone",      "descript._coordinates_longitude"="longitude", "descript._coordinates_latitude"="latitude",   
                   "descript.population.household"="household", "descript.population.men"="men",
@@ -188,26 +226,7 @@ write.table(dataviz, file='out/dataviz.tsv', quote=FALSE, sep='\t', col.names = 
 
 
 
-dataviz1 <-data[ , c( "descript.individual" , "descript._coordinates_longitude", "descript._coordinates_latitude"
-)]
 
-## get shorten version of the column to decrease dataviz size
-dataviz1 <-rename(dataviz1, c( "descript._coordinates_longitude"="longitude", "descript._coordinates_latitude"="latitude",                 
-                            "descript.individual"="individual"))
-
-
-
-
-
-
-datasp <- dataviz1
-
-coords <- cbind(datasp$longitude, datasp$latitude)
-datasp <- SpatialPointsDataFrame(coords , data= datasp,proj4string=CRS("+proj=longlat"))
-
-writeSpatialShape(datasp, "datasp")
-
-district <- readShapePoly('~/unhcr_r_project/cccm-assessment/data/irq_admbnda_adm2_ocha_20140717.shp', proj4string=CRS("+proj=longlat"))
 
 #This creates the voronoi line segments
 ## function for voronoi polygon
@@ -242,7 +261,7 @@ voronoipolygons <- function(x,poly) {
 
 
 vorototal <- voronoipolygons(coords,district)
-plot(test)
+
 
 gg1 = gIntersection(districti,vorototal,byid=TRUE)
 
@@ -270,14 +289,17 @@ for (i in 1:disnumber)
     i <- i + 1;
 }
 
-plot(poly.data)
+#plot(poly.data)
 #summary(poly.data)
+#
 
 ## Convert SpatialPolygons in SpatialPolygonsDataFrame
 IDs <- sapply(slot(poly.data, "polygons"), function(x) slot(x, "ID"))
 df <- data.frame(rep(0, length(IDs)), row.names=IDs)
 
 spp <- SpatialPolygonsDataFrame(poly.data,df)
+
+writeOGR(spp,"out","voronoiall",driver="ESRI Shapefile", overwrite_layer=TRUE)
 
 sppover <- over(spp, datasp)
 spp@data$id = as.numeric(rownames(spp@data))
@@ -297,8 +319,13 @@ sppall1 <-sppall1[,-(2:3)]
 
 #sppall1 <-sppall1[ , c("individual")]
 
-writeOGR(sppall1,"out","voronoi3",driver="ESRI Shapefile")
+writeOGR(sppall1,"out","voronoi",driver="ESRI Shapefile", overwrite_layer=TRUE)
 
 
 #writePolyShape(gg, "voronoi")
+
+library(rPython)
+
+# Load/run the main Python script
+#python.load("regionalise.py")
 
