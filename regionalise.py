@@ -2,7 +2,8 @@
 
 ### Script for Regionalisation 
 ## http://www.rise-group.org/risem/clusterpy/index.html
-
+## Using Max p
+### http://www.rise-group.org/risem/clusterpy/clusterpy0_9_9/endogenous.html#maxp-description
 
 import clusterpy
 

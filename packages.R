@@ -80,6 +80,9 @@ library(devtools)
 #install_git("git://github.com/gsk3/taRifx.geo.git")
 library(taRifx.geo)
 
+
+library(rPython)
+
 #
 format_si <- function(...) {
   # Format a vector of numeric values according
