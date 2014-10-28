@@ -97,7 +97,7 @@ data$class <-revalue(data$class, c("1"="a. 0-49", "2"="b. 50-99", "3"="c. 100-24
 data$housenu <- data$descript.individual/data$descript.population.household
 data$householdnum <- as.factor(findCols(classIntervals(data$housenu,style="fixed",fixedBreaks=c(0, 3, 5, 7, 10, 50))))
 
-data$householdnum <- revalue(data$householdnum, c("1"="1-3", "2"="4-5", "3"="d. 6-7", "4"="e. 8-10", "5"="f. >10"))
+data$householdnum <- revalue(data$householdnum, c("1"="1-3", "2"="4-5", "3"="6-7", "4"="8-10", "5"=" >10"))
 
 
 
@@ -128,7 +128,6 @@ clustered <- ward.cluster(chiDist,
 data$cluster <- paste("Cluster", cutree(clustered, k = 5))
 
 
-
 ## Remove line carriage
 ## http://dodata.wordpress.com/2013/03/08/some-new-gsub-and-grep-in-r-for-irritating-carriage-returns-and-line-feed-cr-lf-crlf/
 data$neighbourhood <- data$descript.neighbourhood
@@ -156,10 +155,15 @@ gsub('\\n\\n', '', x=data$namekey) -> data$namekey
 grep("\\n", x=data$namekey,value=TRUE)
 gsub('\\n', '', x=data$namekey) -> data$namekey
 
-#### Start correcting the gov and district
 
-dataviz1 <-data[ , c( "descript.individual" , "descript._coordinates_longitude", "descript._coordinates_latitude"
-)]
+##
+data$pcode <- data$Row.names
+data$site <- paste(data$neighbourhood, data$sitear, data$namekey,  data$descript.phonekey, sep=" / ")
+
+
+############################ Start correcting the gov and district
+
+dataviz1 <-data[ , c( "descript.individual" , "descript._coordinates_longitude", "descript._coordinates_latitude")]
 
 ## get shorten version of the column to decrease dataviz size
 dataviz1 <-rename(dataviz1, c( "descript._coordinates_longitude"="longitude", "descript._coordinates_latitude"="latitude",                 
@@ -180,12 +184,12 @@ correct <- datasp1@data[ ,c("A1NameEn","HRname")]
 data <- merge(x=data, y=correct, by="row.names")
 
 #data$govchk <- as.numeric(ifelse(data$A1NameEn == data$descript.governorate,0, 1))
-
 #data$govchk <- as.numeric(ifelse(data[["A1NameEn"]] == data[["descript.governorate"]],0, 1))
 #data$districtchk <- as.numeric(ifelse(data[["HRname"]] == data[["descript.district"]],0, 1))
 
 
-### tentative sectorisation/redistricting of IDPS area -- cf infra
+##########################################################################################
+### tentative sectorisation/redistricting of IDPS area -- cf infra vornoi.R
 
 area <- readShapePoly('~/unhcr_r_project/cccm-assessment/out/area.shp', proj4string=CRS("+proj=longlat"))
 
@@ -194,7 +198,10 @@ area <- readShapePoly('~/unhcr_r_project/cccm-assessment/out/area.shp', proj4str
 
 datasparea <- IntersectPtWithPoly(datasp, area)
 
-plot(datasparea)
+datasparea1 <- datasparea@data[ ,c("name")]
+#data <- merge(x=data, y=datasparea1, by="row.names")
+
+#plot(datasparea)
 
 areasp <- aggregate(cbind(individual ) ~ name, data = datasparea@data, FUN = sum, na.rm = TRUE)
 View(areasp)
@@ -202,20 +209,8 @@ View(areasp)
 areadata <-merge(x=area, y=areasp, by="name")
 writeOGR(areadata,"out","areadata",driver="ESRI Shapefile", overwrite_layer=TRUE)
 
-
-## pcoding
-data$site <- paste(data$neighbourhood, data$sitear, data$namekey,  data$descript.phonekey, sep="; ")
-pcode <- data[ ,c( "A1NameEn","HRname","site", "sitear","neighbourhood")]
-pcode <- pcode[order(pcode$A1NameEn, pcode$HRname, pcode$site, pcode$neighbourhood,pcode$sitear),]
-
-
-
-
 ####################################################################################
 # Create a summary column to facilitate revsion in phase 2
-## get an ID
-
-data$pcode <- data$Row.names
 
 data$Summary <- paste(
                     data$neighbourhood,
@@ -223,11 +218,14 @@ data$Summary <- paste(
                     data$descript.population.household, data$descript.population.men, data$descript.population.women,
                     data$descript.population.boys, data$descript.population.girls, data$descript.individual,
                     data$descript.environment,
-                    data$descript.namekey,
-                    data$descript.phonekey,
-                    data$accom,                  
-                    
+                    data$accom,                     
                     sep='\n') 
+
+pcode <- data[ ,c("pcode", "A1NameEn","HRname","site", "sitear","neighbourhood")]
+pcode <- pcode[order(pcode$A1NameEn, pcode$HRname, pcode$site, pcode$neighbourhood,pcode$sitear),]
+
+
+write.table(pcode, file='out/pcode.csv', sep=';', col.names = T, row.names = F)
 
 
 
@@ -294,118 +292,4 @@ write.table(dataviz, file='out/dataviz.tsv', quote=FALSE, sep='\t', col.names = 
 
 
 
-###########################################################################################
-#This creates the voronoi line segments
-## function for voronoi polygon
-# http://stackoverflow.com/questions/12156475/combine-voronoi-polygons-and-maps
-###########################################################################################
 
-
-voronoipolygons <- function(x,poly) {
-  require(deldir)
-  if (.hasSlot(x, 'coords')) {
-    crds <- x@coords  
-  } else crds <- x
-  bb = bbox(poly)
-  rw = as.numeric(t(bbox(district)))
-  z <- deldir(crds[,1], crds[,2],rw=rw)
-  w <- tile.list(z)
-  polys <- vector(mode='list', length=length(w))
-  require(sp)
-  for (i in seq(along=polys)) {
-    pcrds <- cbind(w[[i]]$x, w[[i]]$y)
-    pcrds <- rbind(pcrds, pcrds[1,])
-    polys[[i]] <- Polygons(list(Polygon(pcrds)), ID=as.character(i))
-  }
-  SP <- SpatialPolygons(polys)  
-  voronoi <- SpatialPolygonsDataFrame(SP, data=data.frame(x=crds[,1],
-                                                          y=crds[,2], row.names=sapply(slot(SP, 'polygons'), 
-                                                                                       function(x) slot(x, 'ID'))))
-  return(voronoi)  
-}
-
-vorototal <- voronoipolygons(coords,district)
-proj4string(vorototal) <- '+proj=longlat'
-
-writeOGR(vorototal,"out","vorototal",driver="ESRI Shapefile", overwrite_layer=TRUE)
-
-vorototalover <- over(vorototal, datasp)
-#vorototalover@data$id = as.numeric(rownames(vorototalover@data))
-#vorototaloverover$id = as.numeric(rownames(vorototaloverover))
-#vorototaloverall <-merge(x=spp, y=vorototaloverover, by="row.names")
-
-#names(vorototaloverpall)
-
-
-#keep only individual
-
-
-#writeOGR(vorototal1,"out","vorototal1",driver="ESRI Shapefile", overwrite_layer=TRUE)
-
-
-#gg <- spRbind(gg1, gg0) 
-#gg <- gUnion(gg1, gg0) 
-# gg <-rbind(gg,gg0, fix.duplicated.IDs=TRUE)
-
-#rm(gg0)  
-
-########################################################
-## loop on each district
-
-poly.data <- district[1,]
-uid <- as.numeric("1")
-disnumber <- length(district)
-for (i in 1:disnumber)
-{
-    districti <- district[i,]
-    assign(paste("gg",i,sep=""), gIntersection(districti,vorototal,byid=TRUE))
-    temp.data <- gIntersection(districti,vorototal,byid=TRUE)
-    n <- length(slot(temp.data, "polygons"))
-    temp.data <- spChFIDs(temp.data, as.character(uid:(uid+n-1)))
-    uid <- as.numeric( uid + n)
-    poly.data <- spRbind(poly.data,temp.data)
-    i <- i + 1;
-}
-
-#plot(poly.data)
-#summary(poly.data)
-#
-
-## Convert SpatialPolygons in SpatialPolygonsDataFrame
-IDs <- sapply(slot(poly.data, "polygons"), function(x) slot(x, "ID"))
-df <- data.frame(rep(0, length(IDs)), row.names=IDs)
-
-spp <- SpatialPolygonsDataFrame(poly.data,df)
-
-writeOGR(spp,"out","voronoiall",driver="ESRI Shapefile", overwrite_layer=TRUE)
-
-sppover <- over(spp, datasp)
-spp@data$id = as.numeric(rownames(spp@data))
-sppover$id = as.numeric(rownames(sppover))
-sppall <-merge(x=spp, y=sppover, by="row.names")
-
-names(sppall)
-## put 0 instead of NA to ensure that individual will be parsed as numeric
-sppall@data$individual[is.na(sppall@data$individual)] <- 0
-
-#keep only individual
-sppall1 <- sppall
-sppall1 <-sppall1[,-(5)]
-sppall1 <-sppall1[,-(1:3)]
-
-sppall1 <-sppall1[,-(2:3)]
-
-#sppall1 <-sppall1[ , c("individual")]
-
-writeOGR(sppall1,"out","voronoi",driver="ESRI Shapefile", overwrite_layer=TRUE)
-
-
-#writePolyShape(gg, "voronoi")
-
-
-# Load/run the main Python script
-#python.load("regionalise.py")
-
-## Unfinieshed Building -- Abandonned Building OpenSites
-
-sum(data$Under.construction)
