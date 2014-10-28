@@ -45,7 +45,7 @@ data <- merge(x=data, y=datasparea1, by="pcode")
 #plot(datasparea)
 
 areasp <- aggregate(cbind(individual ) ~ name, data = datasparea@data, FUN = sum, na.rm = TRUE)
-View(areasp)
+#View(areasp)
 
 areadata <-merge(x=area, y=areasp, by="name")
 writeOGR(areadata,"out","areadata",driver="ESRI Shapefile", overwrite_layer=TRUE)
@@ -54,7 +54,7 @@ writeOGR(areadata,"out","areadata",driver="ESRI Shapefile", overwrite_layer=TRUE
 # Create a summary column to facilitate revsion in phase 2
 
 
-pcode <- data[ , c("pcode", "A1NameEn","HRname","site", "sitear","neighbourhood")]
+pcode <- as.data.frame(data[ , c("pcode", "A1NameEn","HRname","site","name", "sitear","neighbourhood")])
   
 
 pcode <- pcode[order(pcode$A1NameEn, pcode$HRname, pcode$site, pcode$neighbourhood,pcode$sitear),]
@@ -73,7 +73,7 @@ names(dataviz)
 #dataviz <- dataviz[,-(1:10,12,16,17,29:37,46:50),drop=FALSE]
 
 ## select the column of interest for the dataviz
-dataviz <-dataviz[ , c("pcode", "sitear", "neighbourhood", "descript.organisat" ,"descript.governorate", "descript.district" ,
+dataviz <-dataviz[ , c("pcode", "name", "sitear", "neighbourhood", "descript.organisat" ,"descript.governorate", "descript.district" ,
                        "descript.photo.photoreceiver"  , "descript.environment" ,      "A1NameEn", "HRname",              
                        "descript.phonekey", "householdnum",        
                        "descript.population.household", "descript.population.men",
@@ -125,4 +125,16 @@ dataviz$fighting <-revalue(dataviz$fighting, c("maj"="1.Major","mod"="2.Moderate
 ## write in a tsv file for the dataviz -- reason for the tsv is to keep the formatting of the column where coordinates are stored
 write.table(dataviz, file='out/dataviz.tsv', quote=FALSE, sep='\t', col.names = T, row.names = F)
 
-
+rm(areasp)
+rm(coords)
+   rm(correct)
+#      rm(data)
+         rm(datasparea1)
+            rm(dataviz1)
+               
+rm(area)
+ rm(areadata)
+rm(datasp)
+   rm(datasp1)
+  rm(datasparea)
+ rm(district)

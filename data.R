@@ -172,3 +172,10 @@ data$Summary <- paste(
   data$descript.environment,
   data$accom,                     
   sep='\n') 
+
+
+## clean wd
+
+rm(acm)
+rm(chiDist)
+rm(clustered)
