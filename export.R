@@ -1,5 +1,5 @@
 
-#source("~/unhcr_r_project/cccm-assessment/data.R")
+source("~/unhcr_r_project/cccm-assessment/data.R")
 
 ##########################################################################################
 ############################ Start correcting the gov and district
@@ -47,25 +47,47 @@ data <- merge(x=data, y=datasparea1, by="pcode")
 areasp <- aggregate(cbind(individual ) ~ name, data = datasparea@data, FUN = sum, na.rm = TRUE)
 #View(areasp)
 
+
+
+####################################################################################
+# Create a summary column to facilitate revision in phase 2
+
+
+data$pcoded <- data$Summary <- paste(
+  data$A1Code,
+  data$name,   data$pcode, 
+  sep='-') 
+
+
+
+pcode <- as.data.frame(data[ , c("pcoded","scoreclass", "A1NameEn","HRname", "name", "site","descript.individual","descript.population.household", "sitear","neighbourhood", "descript._coordinates_longitude", "descript._coordinates_latitude")])
+
+pcode <- pcode[order(pcode$A1NameEn, pcode$HRname, pcode$site, pcode$neighbourhood,pcode$sitear),]
+
+pcode <-rename(pcode, c( "scoreclass"="criticallity" , "descript._coordinates_longitude"="longitude",
+                               "descript._coordinates_latitude"="latitude",                 
+                               "descript.individual"="individual", "descript.population.household"= "household",
+                               "name"="OpeArea", "A1NameEn"="Governorate","HRname"="District"
+                               ))
+
+## Define profile of OpeArea
+
+pcode.melt <- melt(pcode, id=c(5,2), measure=c(7,8))
+pcode.cast <- dcast(pcode.melt,  OpeArea ~ variable+criticallity, sum)
+
 areadata <-merge(x=area, y=areasp, by="name")
+
+areadata <-merge(x=areadata, y=pcode.cast, by.x="name", by.y="OpeArea")
+
 writeOGR(areadata,"out","areadata",driver="ESRI Shapefile", overwrite_layer=TRUE)
 
 
 
-
-
-####################################################################################
-# Create a summary column to facilitate revsion in phase 2
-
-
-pcode <- as.data.frame(data[ , c("pcode", "A1NameEn","HRname","site","name", "sitear","neighbourhood", "descript._coordinates_longitude", "descript._coordinates_latitude")])
-  
-
-pcode <- pcode[order(pcode$A1NameEn, pcode$HRname, pcode$site, pcode$neighbourhood,pcode$sitear),]
-
-
 #write.table(pcode, file='out/pcode.csv', sep=';', col.names = T, row.names = F)
 write.csv(pcode, "out/pcode.csv", row.names=FALSE, na="")
+
+
+
 
 
 ##################################################################
