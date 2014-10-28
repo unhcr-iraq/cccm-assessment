@@ -87,6 +87,27 @@ pcode.cast <-rename(pcode.cast, c( "individual_1.Extreme"="extremeI",  "individu
                           "household_2.High"="highH" ,    "household_3.Medium"="mediumH",   "household_4.Low"="lowH",
                          "household_5.None"="noneH"))
 
+
+printTable <- pcode.cast[,-(1:5),drop=FALSE]
+rownames(printTable) <- NULL
+
+#add table as an overlay
+listarea <- qplot(1:10, 1:10, geom = "blank") +
+  theme_tufte(base_family="Helvetica")+
+  theme(line = element_blank(),
+        text = element_blank()) +
+  annotation_custom(grob = tableGrob(printTable,
+                                     show.colnames = FALSE,
+                                     #show.box = FALSE,
+                                     # change font sizes:
+                                     gpar.coltext = gpar(cex = 1.2),
+                                     gpar.rowtext = gpar(cex = 1.2)),
+                    xmin = -Inf, xmax = Inf, 
+                    ymin = -Inf, ymax = Inf)
+
+ggsave("map/listarea.png", listarea, width=9, height=7,units="in", dpi=300, bg = "transparent")
+
+
 pcode.cast$classextreme <- as.factor(findCols(classIntervals(pcode.cast$extremeI, n=6, style="fixed",fixedBreaks=c(0, 250, 500, 1000, 2000, 4000, 100000))))
 #pcode.cast$classextreme <- -revalue(pcode.cast$classextreme, c("1"="a. 0-250", "2"="b. 250-500", "3"="c. 500-1000", "4"="d. 1000-2000", "5"="e. 2000-4000", "6"="f. >4000"))
 
@@ -103,6 +124,8 @@ pcode.cast$classnone <- as.factor(findCols(classIntervals(pcode.cast$noneI, n=6,
 #pcode.cast$classnone <- -revalue(pcode.cast$classnone, c("1"="a. 0-250", "2"="b. 250-500", "3"="c. 500-1000", "4"="d. 1000-2000", "5"="e. 2000-4000", "6"="f. >4000"))
   
 names(pcode.cast)
+
+write.csv(pcode.cast, "out/area.csv", row.names=FALSE, na="")
 
 areadata <-merge(x=area, y=areasp, by="name")
 areadata <-merge(x=areadata, y=pcode.cast, by.x="name", by.y="OpeArea")
@@ -150,7 +173,7 @@ mapareadatae <-  ggplot(areadata_f, aes(x = long, y = lat, group = group, fill=c
   coord_equal()+
  # geom_text(data = areadata_f, aes(label = name, x = Longitude, y = Latitude, group = group) ) + #add labels at centroids
   geom_path(data = areadata_f, aes(x = long, y = lat, group = group), color="grey")+
-  ggtitle("Criticallity Ranking - Extreme")+
+  ggtitle("Criticallity Ranking - Extreme- OpArea ranked by number of Ind.")+
   theme_tufte(base_family="Helvetica")+
   theme(plot.title=element_text(face="bold", size=14),
         axis.title.x=element_blank(),
@@ -168,7 +191,7 @@ mapareadatah <-  ggplot(areadata_f, aes(x = long, y = lat, group = group, fill=c
   coord_equal()+
   # geom_text(data = areadata_f, aes(label = name, x = Longitude, y = Latitude, group = group) ) + #add labels at centroids
   geom_path(data = areadata_f, aes(x = long, y = lat, group = group), color="grey")+
-  ggtitle("Criticallity Ranking - High")+
+  ggtitle("Criticallity Ranking - High- OpArea ranked by number of Ind.")+
   theme_tufte(base_family="Helvetica")+
   theme(plot.title=element_text(face="bold", size=14),
         axis.title.x=element_blank(),
@@ -186,7 +209,7 @@ mapareadatam <-  ggplot(areadata_f, aes(x = long, y = lat, group = group, fill=c
   coord_equal()+
   # geom_text(data = areadata_f, aes(label = name, x = Longitude, y = Latitude, group = group) ) + #add labels at centroids
   geom_path(data = areadata_f, aes(x = long, y = lat, group = group), color="grey")+
-  ggtitle("Criticallity Ranking Medium")+
+  ggtitle("Criticallity Ranking - Medium- OpArea ranked by number of Ind.")+
   theme_tufte(base_family="Helvetica")+
   theme(plot.title=element_text(face="bold", size=14),
         axis.title.x=element_blank(),
@@ -204,7 +227,7 @@ mapareadatan <-  ggplot(areadata_f, aes(x = long, y = lat, group = group, fill=c
   coord_equal()+
   # geom_text(data = areadata_f, aes(label = name, x = Longitude, y = Latitude, group = group) ) + #add labels at centroids
   geom_path(data = areadata_f, aes(x = long, y = lat, group = group), color="grey")+
-  ggtitle("Criticallity Ranking - None")+
+  ggtitle("Criticallity Ranking - None - OpArea ranked by number of Ind.")+
   theme_tufte(base_family="Helvetica")+
   theme(plot.title=element_text(face="bold", size=14),
         axis.title.x=element_blank(),
@@ -222,7 +245,7 @@ mapareadatal <-  ggplot(areadata_f, aes(x = long, y = lat, group = group, fill=c
   coord_equal()+
   # geom_text(data = areadata_f, aes(label = name, x = Longitude, y = Latitude, group = group) ) + #add labels at centroids
   geom_path(data = areadata_f, aes(x = long, y = lat, group = group), color="grey")+
-  ggtitle("Criticallity Ranking Low")+
+  ggtitle("Criticallity Ranking Low- OpArea ranked by number of Ind.")+
   theme_tufte(base_family="Helvetica")+
   theme(plot.title=element_text(face="bold", size=14),
         axis.title.x=element_blank(),
