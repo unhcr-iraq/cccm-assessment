@@ -4,10 +4,10 @@
 ##########################################################################################
 ############################ Start correcting the gov and district
 
-dataviz1 <-data[ , c("pcode", "descript.individual" , "descript._coordinates_longitude", "descript._coordinates_latitude")]
+dataviz1 <-data[ , c("pcode", "descript.individual" ,  "descript.organisat", "descript._coordinates_longitude", "descript._coordinates_latitude")]
 
 ## get shorten version of the column to decrease dataviz size
-dataviz1 <-rename(dataviz1, c( "descript._coordinates_longitude"="longitude", "descript._coordinates_latitude"="latitude",                 
+dataviz1 <-rename(dataviz1, c( "descript.organisat"="organisat" , "descript._coordinates_longitude"="longitude", "descript._coordinates_latitude"="latitude",                 
                                "descript.individual"="individual"))
 
 datasp <- dataviz1
@@ -15,7 +15,7 @@ datasp <- dataviz1
 coords <- cbind(datasp$longitude, datasp$latitude)
 datasp <- SpatialPointsDataFrame(coords, data= datasp, proj4string=CRS("+proj=longlat"))
 
-writeSpatialShape(datasp, "datasp")
+writeSpatialShape(datasp, "out/datasp")
 
 district <- readShapePoly('~/unhcr_r_project/cccm-assessment/data/irq_admbnda_adm2_ocha_20140717.shp', proj4string=CRS("+proj=longlat"))
 
@@ -50,6 +50,10 @@ areasp <- aggregate(cbind(individual ) ~ name, data = datasparea@data, FUN = sum
 areadata <-merge(x=area, y=areasp, by="name")
 writeOGR(areadata,"out","areadata",driver="ESRI Shapefile", overwrite_layer=TRUE)
 
+
+
+
+
 ####################################################################################
 # Create a summary column to facilitate revsion in phase 2
 
@@ -60,8 +64,8 @@ pcode <- as.data.frame(data[ , c("pcode", "A1NameEn","HRname","site","name", "si
 pcode <- pcode[order(pcode$A1NameEn, pcode$HRname, pcode$site, pcode$neighbourhood,pcode$sitear),]
 
 
-write.table(pcode, file='out/pcode.csv', sep=';', col.names = T, row.names = F)
-
+#write.table(pcode, file='out/pcode.csv', sep=';', col.names = T, row.names = F)
+write.csv(pcode, "out/pcode.csv", row.names=FALSE, na="")
 
 
 ##################################################################
