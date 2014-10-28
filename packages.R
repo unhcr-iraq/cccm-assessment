@@ -83,6 +83,11 @@ library(taRifx.geo)
 
 library(rPython)
 
+library(devtools)
+#install_github("cleangeo", "eblondel")
+library(cleangeo)
+
+
 #
 format_si <- function(...) {
   # Format a vector of numeric values according

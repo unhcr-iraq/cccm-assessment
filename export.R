@@ -32,7 +32,7 @@ data <- merge(x=data, y=correct, by="pcode")
 ##########################################################################################
 ### tentative sectorisation/redistricting of IDPS area -- cf infra vornoi.R
 
-area <- readShapePoly('~/unhcr_r_project/cccm-assessment/out/area.shp', proj4string=CRS("+proj=longlat"))
+area <- readShapePoly('~/unhcr_r_project/cccm-assessment/out/area2.shp', proj4string=CRS("+proj=longlat"))
 
 #gplot(area)
 #plot(datasp)
@@ -44,8 +44,7 @@ data <- merge(x=data, y=datasparea1, by="pcode")
 
 #plot(datasparea)
 
-areasp <- aggregate(cbind(individual ) ~ name, data = datasparea@data, FUN = sum, na.rm = TRUE)
-#View(areasp)
+
 
 
 
@@ -70,21 +69,74 @@ pcode <-rename(pcode, c( "scoreclass"="criticallity" , "descript._coordinates_lo
                                "name"="OpeArea", "A1NameEn"="Governorate","HRname"="District"
                                ))
 
+
+
+#write.table(pcode, file='out/pcode.csv', sep=';', col.names = T, row.names = F)
+write.csv(pcode, "out/pcode.csv", row.names=FALSE, na="")
+
+#########################################################
 ## Define profile of OpeArea
+areasp <- aggregate(cbind(individual ) ~ name, data = datasparea@data, FUN = sum, na.rm = TRUE)
+#View(areasp)
 
 pcode.melt <- melt(pcode, id=c(5,2), measure=c(7,8))
 pcode.cast <- dcast(pcode.melt,  OpeArea ~ variable+criticallity, sum)
 
 areadata <-merge(x=area, y=areasp, by="name")
-
 areadata <-merge(x=areadata, y=pcode.cast, by.x="name", by.y="OpeArea")
+
+
+#get a report of geometry validity & issues for a sp spatial object
+report <- clgeo_CollectionReport(area)
+summary <- clgeo_SummaryReport(report)
+issues <- report[report$valid == FALSE,]
+
+#get suspicious features (indexes)
+nv <- clgeo_SuspiciousFeatures(report)
+mysp <- area[nv[-14],]
+
+#try to clean data
+mysp.clean <- clgeo_Clean(mysp, print.log = TRUE)
+
+#check if they are still errors
+report.clean <- clgeo_CollectionReport(mysp.clean)
+summary.clean <- clgeo_SummaryReport(report.clean)
+issues.clean <- report[report$valid == FALSE,]
+
+# use checkPolygonsHoles() to make sure that the holes are correctly
+# defined (the input file has a single ring defined as a hole
+# which is illogical, holes have to be within something else
+slot(areadata, "polygons") <- lapply(slot(areadata, "polygons"), checkPolygonsHoles)
+
+# next run unionSpatialPolygons() to merge the Polygons objects that
+# belong to the same name
+areadata1 <- unionSpatialPolygons(areadata, as.character(areadata$name))
+
+
+# Fortify them
+areadata@data$id = rownames(areadata@data)
+areadata_f <- fortify(areadata, region="id")
+
+rm(mapareadata)
+mapareadata <-  ggplot(areadata_f, aes(long, lat)) + coord_equal()+
+  geom_polygon(data = areadata_f, aes(x = long, y = lat, group = group), alpha = 0.5) +
+#  geom_text(aes(label = name, x = long, y = lat, group = group)) + #add labels at centroids
+  geom_path(data = areadata_f, aes(x = long, y = lat, group = group), color="white")+
+  ggtitle("Operational Area")+
+theme_tufte(base_family="Helvetica")+
+  theme(plot.title=element_text(face="bold", size=14),
+        axis.title.x=element_blank(),
+        axis.title.y=element_blank(),
+        axis.text.x = element_blank(),axis.ticks = element_blank(),
+        axis.text.y = element_blank(),
+        #legend.position = c(0.15, 0.8)
+        legend.position = "none")
+
+ggsave("map/mapareadata.png", mapareadata, width=8, height=6,units="in", dpi=300)
 
 writeOGR(areadata,"out","areadata",driver="ESRI Shapefile", overwrite_layer=TRUE)
 
 
-
-#write.table(pcode, file='out/pcode.csv', sep=';', col.names = T, row.names = F)
-write.csv(pcode, "out/pcode.csv", row.names=FALSE, na="")
 
 
 
@@ -159,7 +211,7 @@ rm(coords)
             rm(dataviz1)
                
 rm(area)
- rm(areadata)
+# rm(areadata)
 rm(datasp)
    rm(datasp1)
   rm(datasparea)
