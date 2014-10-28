@@ -54,7 +54,9 @@ writeOGR(areadata,"out","areadata",driver="ESRI Shapefile", overwrite_layer=TRUE
 # Create a summary column to facilitate revsion in phase 2
 
 
-pcode <- data[ , c( "A1NameEn","HRname","site", "sitear","neighbourhood", "pcode")]
+pcode <- data[ , c("pcode", "A1NameEn","HRname","site", "sitear","neighbourhood")]
+  
+
 pcode <- pcode[order(pcode$A1NameEn, pcode$HRname, pcode$site, pcode$neighbourhood,pcode$sitear),]
 
 
