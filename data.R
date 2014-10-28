@@ -33,7 +33,7 @@ data$end <- as.POSIXct(data$end, format="%Y-%m-%dT%H:%M:%S", tz="GMT")
 
 data$geo <-paste(data$descript._coordinates_latitude, data$descript._coordinates_longitude, sep = ",")
 
-
+data$Open <- as.numeric(ifelse(data[["physicalcondition.shelter.op"]] == "True",1, 0))
 data$Improvised.Shelter <- as.numeric(ifelse(data[["physicalcondition.shelter.imp"]] == "True",1, 0))
 data$Tent <- as.numeric(ifelse(data[["physicalcondition.shelter.nat"]] == "True",1, 0))
 data$Individual.mud.building <- as.numeric(ifelse(data[["physicalcondition.shelter.mix"]] == "True",1, 0))
@@ -42,6 +42,19 @@ data$Individual.concrete.building <- as.numeric(ifelse(data[["physicalcondition.
 data$Shop <- as.numeric(ifelse(data[["physicalcondition.shelter.shop"]] == "True",1, 0))
 data$Apartment.block <- as.numeric(ifelse(data[["physicalcondition.shelter.big"]] == "True",1, 0))
 data$Under.construction <- as.numeric(ifelse(data[["physicalcondition.shelter.const"]] == "True",1, 0))
+
+
+data$unfinished <-  ifelse(data[["Under.construction"]] ==1,"Yes", "No")
+
+data$abandonned <- ifelse(  data[["Individual.mix.building"]] +
+                                 data[["Individual.mud.building"]] +
+                                 data[["Shop"]]+ 
+                                 data[["Individual.concrete.building"]]+
+                                 data[["Apartment.block"]] >= 1,"Yes", "No")
+
+data$opensite <- ifelse(    data[["Improvised.Shelter"]] +
+                                 data[["Tent"]] +
+                                 data[["Open"]] >= 1,"Yes", "No")
 
 data$accom <- paste(
   ifelse(data[["physicalcondition.shelter.const"]] == "True","Unfinished", ""),
@@ -79,10 +92,12 @@ data$scoreclass <-revalue(data$scoreclass, c("5"="5.None", "4"="4.Low", "3"="3.M
 
 data$class <- as.factor(findCols(classIntervals(data$descript.individual, n=6, style="fixed",fixedBreaks=c(0, 50, 100, 250, 500, 1000, 100000))))
 
-data$class <-revalue(data$class, c("1"="a. 0-49", "2"="b. 50-99", "3"="c. 100-249", "4"="d. 250-499", "5"="e. 500-2000", "6"="f. >1000"))
+data$class <-revalue(data$class, c("1"="a. 0-49", "2"="b. 50-99", "3"="c. 100-249", "4"="d. 250-499", "5"="e. 500-1000", "6"="f. >1000"))
 
+data$housenu <- data$descript.individual/data$descript.population.household
+data$householdnum <- as.factor(findCols(classIntervals(data$housenu,style="fixed",fixedBreaks=c(0, 3, 5, 7, 10, 50))))
 
-data$householdnum <- as.factor(findCols(classIntervals(data$descript.population.household/data$descript.individual, n=6, style="jenks")))
+data$householdnum <- revalue(data$householdnum, c("1"="1-3", "2"="4-5", "3"="d. 6-7", "4"="e. 8-10", "5"="f. >10"))
 
 
 
@@ -133,6 +148,14 @@ grep("\\n", x=data$sitear,value=TRUE)
 gsub('\\n', '', x=data$sitear) -> data$sitear
 
 
+data$namekey <- data$descript.namekey
+grep('\\R\\n', x=data$namekey,value=TRUE)
+gsub('\\R\\n', '', x=data$namekey) -> data$namekey
+grep("\\n\\n", x=data$namekey,value=TRUE)
+gsub('\\n\\n', '', x=data$namekey) -> data$namekey
+grep("\\n", x=data$namekey,value=TRUE)
+gsub('\\n', '', x=data$namekey) -> data$namekey
+
 #### Start correcting the gov and district
 
 dataviz1 <-data[ , c( "descript.individual" , "descript._coordinates_longitude", "descript._coordinates_latitude"
@@ -145,7 +168,7 @@ dataviz1 <-rename(dataviz1, c( "descript._coordinates_longitude"="longitude", "d
 datasp <- dataviz1
 
 coords <- cbind(datasp$longitude, datasp$latitude)
-datasp <- SpatialPointsDataFrame(coords , data= datasp,proj4string=CRS("+proj=longlat"))
+datasp <- SpatialPointsDataFrame(coords, data= datasp, proj4string=CRS("+proj=longlat"))
 
 writeSpatialShape(datasp, "datasp")
 
@@ -156,11 +179,57 @@ datasp1 <- IntersectPtWithPoly(datasp, district)
 correct <- datasp1@data[ ,c("A1NameEn","HRname")]
 data <- merge(x=data, y=correct, by="row.names")
 
-
 #data$govchk <- as.numeric(ifelse(data$A1NameEn == data$descript.governorate,0, 1))
 
 #data$govchk <- as.numeric(ifelse(data[["A1NameEn"]] == data[["descript.governorate"]],0, 1))
 #data$districtchk <- as.numeric(ifelse(data[["HRname"]] == data[["descript.district"]],0, 1))
+
+
+### tentative sectorisation/redistricting of IDPS area -- cf infra
+
+area <- readShapePoly('~/unhcr_r_project/cccm-assessment/out/area.shp', proj4string=CRS("+proj=longlat"))
+
+#gplot(area)
+#plot(datasp)
+
+datasparea <- IntersectPtWithPoly(datasp, area)
+
+plot(datasparea)
+
+areasp <- aggregate(cbind(individual ) ~ name, data = datasparea@data, FUN = sum, na.rm = TRUE)
+View(areasp)
+
+areadata <-merge(x=area, y=areasp, by="name")
+writeOGR(areadata,"out","areadata",driver="ESRI Shapefile", overwrite_layer=TRUE)
+
+
+## pcoding
+data$site <- paste(data$neighbourhood, data$sitear, data$namekey,  data$descript.phonekey, sep="; ")
+pcode <- data[ ,c( "A1NameEn","HRname","site", "sitear","neighbourhood")]
+pcode <- pcode[order(pcode$A1NameEn, pcode$HRname, pcode$site, pcode$neighbourhood,pcode$sitear),]
+
+
+
+
+####################################################################################
+# Create a summary column to facilitate revsion in phase 2
+## get an ID
+
+data$pcode <- data$Row.names
+
+data$Summary <- paste(
+                    data$neighbourhood,
+                    data$A1NameEn, data$HRname,
+                    data$descript.population.household, data$descript.population.men, data$descript.population.women,
+                    data$descript.population.boys, data$descript.population.girls, data$descript.individual,
+                    data$descript.environment,
+                    data$descript.namekey,
+                    data$descript.phonekey,
+                    data$accom,                  
+                    
+                    sep='\n') 
+
+
 
 ##################################################################
 ####### Create export for dataviz  ###############################
@@ -181,7 +250,7 @@ dataviz <-dataviz[ , c( "sitear", "neighbourhood", "descript.organisat" ,"descri
 "physicalcondition.conditions.hazards","physicalcondition.conditions.mines","physicalcondition.conditions.fighting", "geo",                                       
  "Improvised.Shelter","Tent", "Individual.mud.building",                   
 "Individual.mix.building","Individual.concrete.building", "Shop" ,                                     
- "Apartment.block", "Under.construction", "class","accom","cluster","scoreclass", "descript._coordinates_longitude", "descript._coordinates_latitude"
+ "Apartment.block", "Under.construction","opensite","abandonned","unfinished", "class","accom","cluster","scoreclass", "descript._coordinates_longitude", "descript._coordinates_latitude"
   )]
 
 ## get shorten version of the column to decrease dataviz size
@@ -225,14 +294,13 @@ write.table(dataviz, file='out/dataviz.tsv', quote=FALSE, sep='\t', col.names = 
 
 
 
-
-
-
+###########################################################################################
 #This creates the voronoi line segments
 ## function for voronoi polygon
 # http://stackoverflow.com/questions/12156475/combine-voronoi-polygons-and-maps
-## loop on each district
-districti <- district[1,]
+###########################################################################################
+
+
 voronoipolygons <- function(x,poly) {
   require(deldir)
   if (.hasSlot(x, 'coords')) {
@@ -249,21 +317,30 @@ voronoipolygons <- function(x,poly) {
     pcrds <- rbind(pcrds, pcrds[1,])
     polys[[i]] <- Polygons(list(Polygon(pcrds)), ID=as.character(i))
   }
-  SP <- SpatialPolygons(polys)
-  
+  SP <- SpatialPolygons(polys)  
   voronoi <- SpatialPolygonsDataFrame(SP, data=data.frame(x=crds[,1],
                                                           y=crds[,2], row.names=sapply(slot(SP, 'polygons'), 
                                                                                        function(x) slot(x, 'ID'))))
-  
-  return(voronoi)
-  
+  return(voronoi)  
 }
 
-
 vorototal <- voronoipolygons(coords,district)
+proj4string(vorototal) <- '+proj=longlat'
+
+writeOGR(vorototal,"out","vorototal",driver="ESRI Shapefile", overwrite_layer=TRUE)
+
+vorototalover <- over(vorototal, datasp)
+#vorototalover@data$id = as.numeric(rownames(vorototalover@data))
+#vorototaloverover$id = as.numeric(rownames(vorototaloverover))
+#vorototaloverall <-merge(x=spp, y=vorototaloverover, by="row.names")
+
+#names(vorototaloverpall)
 
 
-gg1 = gIntersection(districti,vorototal,byid=TRUE)
+#keep only individual
+
+
+#writeOGR(vorototal1,"out","vorototal1",driver="ESRI Shapefile", overwrite_layer=TRUE)
 
 
 #gg <- spRbind(gg1, gg0) 
@@ -273,8 +350,9 @@ gg1 = gIntersection(districti,vorototal,byid=TRUE)
 #rm(gg0)  
 
 ########################################################
+## loop on each district
 
-poly.data <- gg1
+poly.data <- district[1,]
 uid <- as.numeric("1")
 disnumber <- length(district)
 for (i in 1:disnumber)
@@ -324,8 +402,10 @@ writeOGR(sppall1,"out","voronoi",driver="ESRI Shapefile", overwrite_layer=TRUE)
 
 #writePolyShape(gg, "voronoi")
 
-library(rPython)
 
 # Load/run the main Python script
 #python.load("regionalise.py")
 
+## Unfinieshed Building -- Abandonned Building OpenSites
+
+sum(data$Under.construction)
