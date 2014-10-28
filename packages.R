@@ -206,4 +206,5 @@ IntersectPtWithPoly <- function(x, y) {
                                              return(x2)
 }
 
-
+getLabelPoint <- # Returns a county-named list of label points
+  function(county) {Polygon(county[c('long', 'lat')])@labpt}
