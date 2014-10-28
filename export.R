@@ -21,7 +21,7 @@ district <- readShapePoly('~/unhcr_r_project/cccm-assessment/data/irq_admbnda_ad
 
 datasp1 <- IntersectPtWithPoly(datasp, district)
 
-correct <- datasp1@data[ ,c("pcode","A1NameEn","HRname")]
+correct <- datasp1@data[ ,c("pcode","A1NameEn","HRname","A1Code","A2Code" )]
 data <- merge(x=data, y=correct, by="pcode")
 
 #data$govchk <- as.numeric(ifelse(data$A1NameEn == data$descript.governorate,0, 1))
@@ -58,7 +58,7 @@ writeOGR(areadata,"out","areadata",driver="ESRI Shapefile", overwrite_layer=TRUE
 # Create a summary column to facilitate revsion in phase 2
 
 
-pcode <- as.data.frame(data[ , c("pcode", "A1NameEn","HRname","site","name", "sitear","neighbourhood")])
+pcode <- as.data.frame(data[ , c("pcode", "A1NameEn","HRname","site","name", "sitear","neighbourhood", "descript._coordinates_longitude", "descript._coordinates_latitude")])
   
 
 pcode <- pcode[order(pcode$A1NameEn, pcode$HRname, pcode$site, pcode$neighbourhood,pcode$sitear),]
