@@ -71,9 +71,6 @@ pcode <-rename(pcode, c( "scoreclass"="criticallity" , "descript._coordinates_lo
 
 
 
-#write.table(pcode, file='out/pcode.csv', sep=';', col.names = T, row.names = F)
-write.csv(pcode, "out/pcode.csv", row.names=FALSE, na="")
-
 #########################################################
 ## Define profile of OpeArea
 areasp <- aggregate(cbind(individual ) ~ name, data = datasparea@data, FUN = sum, na.rm = TRUE)
@@ -87,25 +84,20 @@ pcode.cast <-rename(pcode.cast, c( "individual_1.Extreme"="extremeI",  "individu
                           "household_2.High"="highH" ,    "household_3.Medium"="mediumH",   "household_4.Low"="lowH",
                          "household_5.None"="noneH"))
 
+pcode.sum <- aggregate(individual ~ OpeArea, data=pcode,  FUN= sum)
+pcode.cast <- merge(x=pcode.sum, y=pcode.cast, by="OpeArea")  
 
-printTable <- pcode.cast[,-(1:5),drop=FALSE]
-rownames(printTable) <- NULL
+rm(pcode.count)
+pcode.count <- ddply(pcode, c("OpeArea"), summarise, count = length(criticallity) )
+pcode.count <- count(pcode, c("OpeArea", "criticallity"))
+pcode.count <- dcast(pcode.count,  OpeArea ~ criticallity, sum)
+pcode.count1 <- count(pcode, c("OpeArea"))
+pcode.count <- merge(x=pcode.count1, y=pcode.count, by="OpeArea")  
+  #psum( pcode.count$1.Extreme,  pcode.count$2.High,	pcode.count$3.Medium,	pcode.count$4.Low, pcode.count$5.None, na.rm=na.rm)
 
-#add table as an overlay
-listarea <- qplot(1:10, 1:10, geom = "blank") +
-  theme_tufte(base_family="Helvetica")+
-  theme(line = element_blank(),
-        text = element_blank()) +
-  annotation_custom(grob = tableGrob(printTable,
-                                     show.colnames = FALSE,
-                                     #show.box = FALSE,
-                                     # change font sizes:
-                                     gpar.coltext = gpar(cex = 1.2),
-                                     gpar.rowtext = gpar(cex = 1.2)),
-                    xmin = -Inf, xmax = Inf, 
-                    ymin = -Inf, ymax = Inf)
 
-ggsave("map/listarea.png", listarea, width=9, height=7,units="in", dpi=300, bg = "transparent")
+#write.table(pcode, file='out/pcode.csv', sep=';', col.names = T, row.names = F)
+write.csv(pcode, "out/pcode.csv", row.names=FALSE, na="")
 
 
 pcode.cast$classextreme <- as.factor(findCols(classIntervals(pcode.cast$extremeI, n=6, style="fixed",fixedBreaks=c(0, 250, 500, 1000, 2000, 4000, 100000))))
@@ -122,7 +114,7 @@ pcode.cast$classlow <- as.factor(findCols(classIntervals(pcode.cast$lowI, n=6, s
 
 pcode.cast$classnone <- as.factor(findCols(classIntervals(pcode.cast$noneI, n=6, style="fixed",fixedBreaks=c(0, 250, 500, 1000, 2000, 4000, 100000))))
 #pcode.cast$classnone <- -revalue(pcode.cast$classnone, c("1"="a. 0-250", "2"="b. 250-500", "3"="c. 500-1000", "4"="d. 1000-2000", "5"="e. 2000-4000", "6"="f. >4000"))
-  
+
 names(pcode.cast)
 
 write.csv(pcode.cast, "out/area.csv", row.names=FALSE, na="")
@@ -132,129 +124,6 @@ areadata <-merge(x=areadata, y=pcode.cast, by.x="name", by.y="OpeArea")
 
 
 writeOGR(areadata,"out","areadata",driver="ESRI Shapefile", overwrite_layer=TRUE)
-
-
-
-
-##################################################################################
-# Fortify them
-areadata@data$id = rownames(areadata@data)
-centroids.areadata <- as.data.frame(coordinates(areadata))
-names(centroids.areadata) <- c("Longitude", "Latitude")
-areadata@data <- merge (x=centroids.areadata, y=areadata@data, by="row.names")
-
-areadata_f <- fortify(areadata, region="id")
-areadata_f <-join(areadata_f, areadata@data, by="id")
-
-## add centroid for label
-
-
-
-rm(mapareadata)
-mapareadata <-  ggplot(areadata_f, aes(long, lat)) + coord_equal()+
-  geom_polygon(data = areadata_f, aes(x = long, y = lat, group = group), alpha = 0.5) +
- # geom_text(data = areadata_f, aes(label = name, x = Longitude, y = Latitude, group = group) ) + #add labels at centroids
-  geom_path(data = areadata_f, aes(x = long, y = lat, group = group), color="white")+
-  ggtitle("Operational Area")+
-theme_tufte(base_family="Helvetica")+
-  theme(plot.title=element_text(face="bold", size=14),
-        axis.title.x=element_blank(),
-        axis.title.y=element_blank(),
-        axis.text.x = element_blank(),axis.ticks = element_blank(),
-        axis.text.y = element_blank(),
-        #legend.position = c(0.15, 0.8)
-        legend.position = "none")
-ggsave("map/mapareadata.png", mapareadata, width=8, height=6,units="in", dpi=300)
-
-rm(mapareadatae)
-mapareadatae <-  ggplot(areadata_f, aes(x = long, y = lat, group = group, fill=classextreme)) + 
-  geom_polygon(data = areadata_f, aes(fill=classextreme), alpha = 0.8) +
-  scale_fill_brewer(palette="PuRd", name="Extreme") +   
-  coord_equal()+
- # geom_text(data = areadata_f, aes(label = name, x = Longitude, y = Latitude, group = group) ) + #add labels at centroids
-  geom_path(data = areadata_f, aes(x = long, y = lat, group = group), color="grey")+
-  ggtitle("Criticallity Ranking - Extreme- OpArea ranked by number of Ind.")+
-  theme_tufte(base_family="Helvetica")+
-  theme(plot.title=element_text(face="bold", size=14),
-        axis.title.x=element_blank(),
-        axis.title.y=element_blank(),
-        axis.text.x = element_blank(),axis.ticks = element_blank(),
-        axis.text.y = element_blank(),
-        #legend.position = c(0.15, 0.8)
-        legend.position = "none")
-ggsave("map/mapareadatae.png", mapareadatae, width=8, height=6,units="in", dpi=300, bg = "transparent")
-
-rm(mapareadatah)
-mapareadatah <-  ggplot(areadata_f, aes(x = long, y = lat, group = group, fill=classhigh)) + 
-  geom_polygon(data = areadata_f, aes(fill=classhigh), alpha = 0.8) +
-  scale_fill_brewer(palette="PuRd", name="Extreme") +   
-  coord_equal()+
-  # geom_text(data = areadata_f, aes(label = name, x = Longitude, y = Latitude, group = group) ) + #add labels at centroids
-  geom_path(data = areadata_f, aes(x = long, y = lat, group = group), color="grey")+
-  ggtitle("Criticallity Ranking - High- OpArea ranked by number of Ind.")+
-  theme_tufte(base_family="Helvetica")+
-  theme(plot.title=element_text(face="bold", size=14),
-        axis.title.x=element_blank(),
-        axis.title.y=element_blank(),
-        axis.text.x = element_blank(),axis.ticks = element_blank(),
-        axis.text.y = element_blank(),
-        #legend.position = c(0.15, 0.8)
-        legend.position = "none")
-ggsave("map/mapareadatah.png", mapareadatah, width=8, height=6,units="in", dpi=300, bg = "transparent")
-
-rm(mapareadatam)
-mapareadatam <-  ggplot(areadata_f, aes(x = long, y = lat, group = group, fill=classmedium)) + 
-  geom_polygon(data = areadata_f, aes(fill=classmedium), alpha = 0.8) +
-  scale_fill_brewer(palette="PuRd", name="Extreme") +   
-  coord_equal()+
-  # geom_text(data = areadata_f, aes(label = name, x = Longitude, y = Latitude, group = group) ) + #add labels at centroids
-  geom_path(data = areadata_f, aes(x = long, y = lat, group = group), color="grey")+
-  ggtitle("Criticallity Ranking - Medium- OpArea ranked by number of Ind.")+
-  theme_tufte(base_family="Helvetica")+
-  theme(plot.title=element_text(face="bold", size=14),
-        axis.title.x=element_blank(),
-        axis.title.y=element_blank(),
-        axis.text.x = element_blank(),axis.ticks = element_blank(),
-        axis.text.y = element_blank(),
-        #legend.position = c(0.15, 0.8)
-        legend.position = "none")
-ggsave("map/mapareadatam.png", mapareadatam, width=8, height=6,units="in", dpi=300, bg = "transparent")
-
-rm(mapareadatan)
-mapareadatan <-  ggplot(areadata_f, aes(x = long, y = lat, group = group, fill=classnone)) + 
-  geom_polygon(data = areadata_f, aes(fill=classnone), alpha = 0.8) +
-  scale_fill_brewer(palette="PuRd", name="Extreme") +   
-  coord_equal()+
-  # geom_text(data = areadata_f, aes(label = name, x = Longitude, y = Latitude, group = group) ) + #add labels at centroids
-  geom_path(data = areadata_f, aes(x = long, y = lat, group = group), color="grey")+
-  ggtitle("Criticallity Ranking - None - OpArea ranked by number of Ind.")+
-  theme_tufte(base_family="Helvetica")+
-  theme(plot.title=element_text(face="bold", size=14),
-        axis.title.x=element_blank(),
-        axis.title.y=element_blank(),
-        axis.text.x = element_blank(),axis.ticks = element_blank(),
-        axis.text.y = element_blank(),
-        #legend.position = c(0.15, 0.8)
-        legend.position = "none")
-ggsave("map/mapareadatan.png", mapareadatan, width=8, height=6,units="in", dpi=300, bg = "transparent")
-
-rm(mapareadatal)
-mapareadatal <-  ggplot(areadata_f, aes(x = long, y = lat, group = group, fill=classlow)) + 
-  geom_polygon(data = areadata_f, aes(fill=classlow), alpha = 0.8) +
-  scale_fill_brewer(palette="PuRd", name="Extreme") +   
-  coord_equal()+
-  # geom_text(data = areadata_f, aes(label = name, x = Longitude, y = Latitude, group = group) ) + #add labels at centroids
-  geom_path(data = areadata_f, aes(x = long, y = lat, group = group), color="grey")+
-  ggtitle("Criticallity Ranking Low- OpArea ranked by number of Ind.")+
-  theme_tufte(base_family="Helvetica")+
-  theme(plot.title=element_text(face="bold", size=14),
-        axis.title.x=element_blank(),
-        axis.title.y=element_blank(),
-        axis.text.x = element_blank(),axis.ticks = element_blank(),
-        axis.text.y = element_blank(),
-        #legend.position = c(0.15, 0.8)
-        legend.position = "none")
-ggsave("map/mapareadatal.png", mapareadatal, width=8, height=6,units="in", dpi=300, bg = "transparent")
 
 
 
