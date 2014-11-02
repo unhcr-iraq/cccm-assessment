@@ -1,12 +1,12 @@
 #######Analysis of  CCM baseline
 
-source("~/unhcr_r_project/cccm-assessment/packages.R")
+source("packages.R")
 
-#download.file(url = "http://ona.io/iraqcccm/exports/baseline/csv", 
-#              destfile = "~/unhcr_r_project/cccm-assessment/data/data.csv")
+#download.file(url = "data/baseline.csv", 
+#              destfile = "data/data.csv")
 #
 rm(data)
-data <- read.csv("~/unhcr_r_project/cccm-assessment/data/Baseline.csv")
+data <- read.csv("data/Baseline.csv")
 
 
 
@@ -179,3 +179,4 @@ data$Summary <- paste(
 rm(acm)
 rm(chiDist)
 rm(clustered)
+

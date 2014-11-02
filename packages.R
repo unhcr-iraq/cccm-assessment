@@ -42,7 +42,6 @@ rm(packages)
 
 # loads packages into memory
 library(lattice)
-library(gmodels)
 library(car)
 library(plyr)
 library(ggplot2) ## The grammar of graphics!
@@ -53,7 +52,6 @@ library(reshape2) ## Restructure data between wide and long format before plotti
 
 library(RColorBrewer) ## Color palette
 library(classInt) ## Classififcation
-library(hexbin) ## Hexa binning
 library(plyr)
 #gpclibPermit()
 library(lubridate)
@@ -78,14 +76,12 @@ library(raster) ## Managing raster dataset
 
 library(devtools)
 #install_git("git://github.com/gsk3/taRifx.geo.git")
-library(taRifx.geo)
 
 
-library(rPython)
 
 library(devtools)
 #install_github("cleangeo", "eblondel")
-library(cleangeo)
+#library(cleangeo)
 
 
 #

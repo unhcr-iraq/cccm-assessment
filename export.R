@@ -1,5 +1,5 @@
 
-source("~/unhcr_r_project/cccm-assessment/data.R")
+source("data.R")
 
 ##########################################################################################
 ############################ Start correcting the gov and district
@@ -17,7 +17,7 @@ datasp <- SpatialPointsDataFrame(coords, data= datasp, proj4string=CRS("+proj=lo
 
 writeSpatialShape(datasp, "out/datasp")
 
-district <- readShapePoly('~/unhcr_r_project/cccm-assessment/data/irq_admbnda_adm2_ocha_20140717.shp', proj4string=CRS("+proj=longlat"))
+district <- readShapePoly('data/irq_admbnda_adm2_ocha_20140717.shp', proj4string=CRS("+proj=longlat"))
 
 datasp1 <- IntersectPtWithPoly(datasp, district)
 
@@ -32,10 +32,10 @@ data <- merge(x=data, y=correct, by="pcode")
 ##########################################################################################
 ### tentative sectorisation/redistricting of IDPS area -- cf infra vornoi.R
 
-area <- readShapePoly('~/unhcr_r_project/cccm-assessment/out/area2.shp', proj4string=CRS("+proj=longlat"))
+area <- readShapePoly('out/area.shp', proj4string=CRS("+proj=longlat"))
 
-#gplot(area)
-#plot(datasp)
+plot(area)
+plot(datasp)
 
 datasparea <- IntersectPtWithPoly(datasp, area)
 
@@ -205,3 +205,4 @@ rm(datasp)
    rm(datasp1)
   rm(datasparea)
  rm(district)
+

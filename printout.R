@@ -1,4 +1,4 @@
-source("~/unhcr_r_project/cccm-assessment/packages.R")
+source("packages.R")
 
 #########################################################
 ### Printout of the list
