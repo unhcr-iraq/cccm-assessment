@@ -3,7 +3,7 @@ source("~/unhcr_r_project/cccm-assessment/packages.R")
 #########################################################
 ### Printout of the list
 rm(printTable)
-printTable <- pcode.cast[,-(8:17),drop=FALSE]
+printTable <- pcode.cast[,-(8:21),drop=FALSE]
 rownames(printTable) <- NULL
 listarea <- qplot(1:10, 1:10, geom = "blank") +
   theme_tufte(base_family="Helvetica")+ theme(line = element_blank(), text = element_blank()) +

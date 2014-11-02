@@ -117,6 +117,8 @@ pcode.cast$classnone <- as.factor(findCols(classIntervals(pcode.cast$noneI, n=6,
 
 names(pcode.cast)
 
+pcode.cast <-merge (x=pcode.cast, y=pcode.count, by="OpeArea")  
+
 write.csv(pcode.cast, "out/area.csv", row.names=FALSE, na="")
 
 areadata <-merge(x=area, y=areasp, by="name")
